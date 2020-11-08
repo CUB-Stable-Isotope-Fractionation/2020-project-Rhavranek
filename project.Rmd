@@ -1,6 +1,6 @@
 ---
-title: "TITLE"
-author: "AUTHOR"
+title: "Soil Water Evaporation"
+author: "Rachel Havranek"
 date: "`r format(Sys.Date(), '%d %b %Y')`"
 output:
   html_document: 
@@ -9,8 +9,6 @@ output:
     toc_depth: 2
     toc_float: true
     code_folding: show
-editor_options:
-  chunk_output_type: inline
 ---
 
 
@@ -18,3 +16,133 @@ editor_options:
 library(tidyverse)
 ```
 
+
+*Governing equations are all from Barnes and Allison, 1983:*
+
+# Saturated Soil 
+### After Zimmermann et al., 1967:
+This is a soil where the water content (theta) is 1.  
+$$
+\frac{dR}{dz} = \frac{E(R-R_{res})}{D^*} \\
+where:\\
+D^* = (p\tau D_l)\\
+and\\
+p = total\ porosity\ \\
+\tau = tortuosity \\
+D_l = diffusion\ coefficient\ of\ liquid\ water\ [m^2/sec]
+$$
+
+where D star is diffusivity of the isotope in pore water, E is evaporation rate, R_res is the isotope ratio of water entering the column from below
+
+for D_l go see Mills and Harris, 1976\\
+
+The solution of the differenential equation above is:
+$$
+R = R_{res} + (R_0 - R_{res})*e^{(-zE/D^*)} \\
+$$
+
+*This assumes that pore space is constant through the soil column.*
+
+In delta notatino we get: 
+
+$$
+\delta  = \delta_{res} +(\delta_{surface} - \delta_{res})*e^{(-zE/D^*)} 
+$$
+
+Activity 1: In breakout rooms, describe in words what's going on in this equation (pairs). Can you relate that back to the craig-gordon model of evaporation?
+
+
+
+The isotopic ratio at the top of the saturated surface can be calculated if you know the relative humidity of the atmosphere, the diffusion ratio, the isotopic ratio that is the source, and the isotope composition of the atmosphere
+$$
+R_{surface}  = \frac{(1-h_a)\sigma R_{res} +h_aR_a)} {\alpha_{eq}} \\
+\text{where:}\\
+h_a = \text{relative humidity of the atmosphere}\\
+\sigma = \text{diffusion ratio} = 1+ (\epsilon_{kinetic}/(1-h_a))  \\
+\eta_i = \text{diffusion ratio excess}\\
+
+$$
+
+```{r}
+saturated_soil <- tibble(
+  z = seq(0,1, by = .01), #m
+  d18O_res = -4, #permil
+  d_surface = 0, #permil
+  E = 0.05, #mm/day
+  E.m_sec = E/1000*24*60*60, #m/sec
+  p = 0.35, #unitless
+  tau = 0.67, #unitless
+  D_l = .01, #m^2 / sec
+  D_star = p*tau*D_l,  #m^2 / sec
+  d18O_z = d18O_res + (d_surface - d18O_res)*exp(-z*E.m_sec/D_star) #permil
+)
+
+saturated_soil %>% ggplot()+aes(x = d18O_z, y = z) + geom_line()  + scale_y_reverse(lim = c(.25, 0))
+```
+
+# Unsaturated Soil:
+## vapor transport region: 
+The relative humidity above the evaporitng front in the soil varies linearly with depth (eq 9:
+$$
+\frac {dN}{dz} = \frac{\rho E}{D^*_{vapor}} \\
+where: \\
+\text {N = concentration of water vapor in the soil}\\
+\text {rho = density of liquid water}\\
+
+$$
+
+Equation 10:
+$$
+D^*_{vapor} = \text{effective diffusivity of water vapor}\\
+D^*_{vapor} = \tau*D^v(\rho-\theta)
+$$
+theta is the water filled porosity 
+so (subbing 9 into 10) .... 
+$$
+\frac {dN}{dz} = \frac{\rho E}{\tau*D^v(\rho-\theta)}
+$$
+
+
+
+
+equations 11 & 12:
+$$
+h = h_a + z/z_{penetration}\\
+z_{penetration} = \frac{N_{saturation}D^*_{vapor}}{\rho E}
+$$
+Equation 13:
+$$
+z_{penetration} = \text{penetration depth}\\
+z_{ef} = \text{depth of evaporating front}\\
+\text{these are related by the equation:}\\
+z_{ef} = (h_{ef} - h_{surface})*z_{penetration}
+$$
+
+
+Equation 17: 
+$$
+\alpha_{eq}hR_l = \sigma_i*R_{reservoir}*z/z_{penetration} + h_aR^a
+$$
+
+Equation 18 (uses the assumption epsilon = 1 - alpha:
+$$
+\delta = \frac{\delta^a +\epsilon_{eq} +(\eta(1+\delta_{reservoir}) + (\delta_{reservoir} - \delta^a)) (z/(z+h_a z_{penetration} ))} {\alpha_{eq}}
+$$
+hoooo! That's a lot to look at, let's break that up:
+1. a description of how the 'reservoir' and air diffuse:remember, } 
+$\eta_i$ = a measure of the ability of molection of species i to escape from the surface
+$$
+diff = \eta(1+\delta_{reservoir}) + (\delta_{reservoir} - \delta^a)
+$$
+so, the equation breaks up into, how effective are molevules of species i leaving the reservoir, and how differeent are the reservoir and air 
+
+
+1. a description of what the humidity is at every z:
+$$
+humidity = (z/(z+h_a z_{penetration} ))
+$$
+
+$$
+\delta = \frac{\delta^a +\epsilon_{eq} +(diffusion)*(humidity)} {\alpha_{eq}}
+$$
+## liquid transport zone: 
