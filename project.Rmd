@@ -53,9 +53,6 @@ $$
 Activity 1: In breakout rooms, describe in words what's going on in this equation (pairs). Can you relate that back to the craig-gordon model of evaporation?
 
 
-
-
-
 ```{r}
 saturated_soil <- tibble(
   # set up 
@@ -72,7 +69,7 @@ saturated_soil <- tibble(
   theta = 0.3, #volumetric water content unitless
   D = 1.5E-9, #m^2 / sec from Barnes and Allison, 1988
   f = tau*theta,
-  
+
   
   #calculated terms
   D_star = f*D,  #m^2 / sec
@@ -169,33 +166,57 @@ so, the equation breaks up into, how effective are molevules of species i leavin
 $$
 humidity = (z/(z+h_a z_{penetration} ))
 $$
-
+So, the equation above can be rewritten as: 
 $$
 \delta = \frac{\delta^a +\epsilon_{eq} +(diffusion)*(humidity)} {\alpha_{eq}}
 $$
+
+```{r frationation factor}
+temp.K = 293.15
+
+
+
+```
+
+
+
+
+
+
 ```{r}
-upper_portion <-  tibble(
+
+vt_region <-  tibble(
   #the basics: 
   z = seq(0,.1, by = .001), #m
   temp = 20, #°C
   temp.K = temp + 273.15,
+  rho = 997, #kg/m^3
   
   #fractionation factors:
   R = 8.314, #J/mol-K
-  alpha_eq = 0.9822*exp(15.788/(R*temp)), #Zhavoronkov et al., 1955 
-  epsilon = (alpha_eq - 1)*1000, #permil 
-  alpha_kin = 1.0025, 
-  epsilon_kin = 25, #permil
+  epsilon_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3),
+  alpha_eq = exp(epsilon_d18O_eq/1000),
+  alpha_kin = .975, 
+  epsilon_kin = -25, #permil
   
   #isotope boundary conditions: 
   d18O_res = -4, #permil
   d180_surface = 0, #permil
   d18O_a = -14, #permil
   
-  # evaporation rates: 
-  E = 0.05, #mm/day
-  E.m_sec = E/(1000*24*60*60), #m/sec
+  #Soil boundary conditions
+  E = 10E-10, #m/sec
+  p = 0.3, # porosity, unitless
+  tau = 0.67, #toruosity, unitless
+  theta = 0.3, #volumetric water content unitless
+  N_sat = 0.017, #kg/m^2
+  D = 1.5E-9, #m^2 / sec from Barnes and Allison, 1988
+  D_v = 2.42E-5,
+  f = tau*theta,
+  D_star = f*D,  #m^2 / sec
+  z_l = D_star/E, #m
   
+
   #relative humidity: 
   h_a = 0.25, 
   
@@ -203,31 +224,25 @@ upper_portion <-  tibble(
   theta_bar = 0.065,
   theta_0 = 0.05,
   
-  #diffusion
-  p = 0.35, #unitless
-  tau = 0.67, #unitless
-  D_l = .01, #m^2 / sec
-  D_star = p*tau*D_l,  #m^2 / sec
-  
-  N_sat = 0.017, #kg/m^2
-  
-  
+  #calculated terms
   eta = (1-h_a)/epsilon_kin,
+  z_bar = (N_sat*D_v)/(rho*E),
   
   a = 0.05, #m
-  diffusion_term  = eta*(1+d18O_res) + (d18O_res - d18O_a),
-  humidity_term = (z/ (z+.025*0.05)),
-  d18O =  (d18O_a + epsilon + (diffusion_term*humidity_term))/alpha_eq
+  diffusion_term  = (eta*(1+d18O_res)) + (d18O_res - d18O_a),
+  humidity_term = (z/ (z+h_a*z_bar)),
+  d18O =  (d18O_a + epsilon_d18O_eq + diffusion_term*humidity_term)/alpha_eq
+  
 )
 
 
+
+vt_region %>% ggplot () + aes (x = d18O, y = z) + geom_line() + scale_y_reverse()
+
 ```
 
 
-```{r}
-N_sat = exp(20.386-5132/293.15) # mmHG
-n_sat_kgm2 = N_sat*13.595
-```
+
 
 
 ## liquid transport zone: 
