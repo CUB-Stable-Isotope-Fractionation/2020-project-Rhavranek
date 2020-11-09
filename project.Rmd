@@ -25,7 +25,7 @@ This is a soil where the water content (theta) is 1.
 $$
 \frac{dR}{dz} = \frac{E(R-R_{res})}{D^*} \\
 where:\\
-D^* = (p\tau D_l)\\
+D^* = \text{effective diffusivity of the isotope in the pore water} (p\tau D_l)\\
 and\\
 p = total\ porosity\ \\
 \tau = tortuosity \\
@@ -58,21 +58,32 @@ Activity 1: In breakout rooms, describe in words what's going on in this equatio
 
 ```{r}
 saturated_soil <- tibble(
-  z = seq(0,1, by = .01), #m
+  # set up 
+  z = seq(0,1, by = .001), #m
+  
+  #Oxygen isotope boundary conditions
   d18O_res = -4, #permil
-  d_surface = 0, #permil
+  d18O_surface = 0, #permil
+  
+  #Soil boundary conditions
   E = 10E-8, #m/sec
- 
-  p = 0.35, #unitless
-  tau = 0.67, #unitless
-  D_l = 1.5E-9, #m^2 / sec
-  D_star = p*tau*D_l,  #m^2 / sec
-  z_l = D_star/E,
-  d18O_z = d18O_res + (d_surface - d18O_res)*exp(-z/z_l) #permil
+  p = 0.3, # porosity, unitless
+  tau = 0.67, #toruosity, unitless
+  theta = 0.3, #volumetric water content unitless
+  D = 1.5E-9, #m^2 / sec from Barnes and Allison, 1988
+  f = tau*theta,
+  
+  
+  #calculated terms
+  D_star = f*D,  #m^2 / sec
+  z_l = D_star/E, #m
+  d18O_z = d18O_res + (d18O_surface - d18O_res)*exp(-z/z_l) #permil
 )
 
 saturated_soil %>% ggplot()+aes(x = d18O_z, y = z) + geom_line()  + scale_y_reverse(limits = c(0.25, 0)) + scale_x_continuous(limits = c(-4,0))
 ```
+Question: Picarro water isotope analyzers (like those you might find in IsoLab in SEEC) have a precision of usually +/- 0.25 permil in oxygen isotope space. To what depth would you be able to differentiate water that has been partially evaporated from the rest of the soil water? 
+
 
 # Unsaturated Soil:
 
