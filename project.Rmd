@@ -6,7 +6,7 @@ output:
   html_document: 
     df_print: paged
     toc: yes
-    toc_depth: 2
+    234toc_depth: 2
     toc_float: true
     code_folding: show
 ---
@@ -17,7 +17,7 @@ library(tidyverse)
 ```
 
 
-*Governing equations are all from Barnes and Allison, 1983:*
+
 
 # Saturated Soil 
 ### After Zimmermann et al., 1967:
@@ -46,41 +46,57 @@ $$
 In delta notatino we get: 
 
 $$
-\delta  = \delta_{res} +(\delta_{surface} - \delta_{res})*e^{(-zE/D^*)} 
+\delta  = \delta_{res} +(\delta_{surface} - \delta_{res})*e^{(-z/z_l)} \\
+z_l = D^*/E
 $$
 
 Activity 1: In breakout rooms, describe in words what's going on in this equation (pairs). Can you relate that back to the craig-gordon model of evaporation?
 
 
 
-The isotopic ratio at the top of the saturated surface can be calculated if you know the relative humidity of the atmosphere, the diffusion ratio, the isotopic ratio that is the source, and the isotope composition of the atmosphere
-$$
-R_{surface}  = \frac{(1-h_a)\sigma R_{res} +h_aR_a)} {\alpha_{eq}} \\
-\text{where:}\\
-h_a = \text{relative humidity of the atmosphere}\\
-\sigma = \text{diffusion ratio} = 1+ (\epsilon_{kinetic}/(1-h_a))  \\
-\eta_i = \text{diffusion ratio excess}\\
 
-$$
 
 ```{r}
 saturated_soil <- tibble(
   z = seq(0,1, by = .01), #m
   d18O_res = -4, #permil
   d_surface = 0, #permil
-  E = 0.05, #mm/day
-  E.m_sec = E/1000*24*60*60, #m/sec
+  E = 10E-8, #m/sec
+ 
   p = 0.35, #unitless
   tau = 0.67, #unitless
-  D_l = .01, #m^2 / sec
+  D_l = 1.5E-9, #m^2 / sec
   D_star = p*tau*D_l,  #m^2 / sec
-  d18O_z = d18O_res + (d_surface - d18O_res)*exp(-z*E.m_sec/D_star) #permil
+  z_l = D_star/E,
+  d18O_z = d18O_res + (d_surface - d18O_res)*exp(-z/z_l) #permil
 )
 
-saturated_soil %>% ggplot()+aes(x = d18O_z, y = z) + geom_line()  + scale_y_reverse(lim = c(.25, 0))
+saturated_soil %>% ggplot()+aes(x = d18O_z, y = z) + geom_line()  + scale_y_reverse(limits = c(0.25, 0)) + scale_x_continuous(limits = c(-4,0))
 ```
 
 # Unsaturated Soil:
+
+## Water concentration curve:
+Let's inspect a soil, with a water concentration profile that looks like this: 
+```{r inset}
+upper_section <- tibble (
+  z = seq (0,0.05, by = 0.001),
+  theta = 0.05
+)
+
+
+lower_section <-  tibble(
+  z = seq (.051, 1, by=0.001),
+  theta = (z+0.9)/19
+)
+
+water_C <- bind_rows(upper_section, lower_section)
+
+water_C %>% ggplot () + aes(x = theta, y = z) %>% geom_line()+scale_y_reverse()+scale_x_continuous(limits = c(0,.1))
+```
+
+
+
 ## vapor transport region: 
 The relative humidity above the evaporitng front in the soil varies linearly with depth (eq 9:
 $$
@@ -128,7 +144,8 @@ Equation 18 (uses the assumption epsilon = 1 - alpha:
 $$
 \delta = \frac{\delta^a +\epsilon_{eq} +(\eta(1+\delta_{reservoir}) + (\delta_{reservoir} - \delta^a)) (z/(z+h_a z_{penetration} ))} {\alpha_{eq}}
 $$
-hoooo! That's a lot to look at, let's break that up:
+hoooo! That's a lot to look at, let's break that up:\\
+
 1. a description of how the 'reservoir' and air diffuse:remember, } 
 $\eta_i$ = a measure of the ability of molection of species i to escape from the surface
 $$
@@ -145,4 +162,114 @@ $$
 $$
 \delta = \frac{\delta^a +\epsilon_{eq} +(diffusion)*(humidity)} {\alpha_{eq}}
 $$
+```{r}
+upper_portion <-  tibble(
+  #the basics: 
+  z = seq(0,.1, by = .001), #m
+  temp = 20, #°C
+  temp.K = temp + 273.15,
+  
+  #fractionation factors:
+  R = 8.314, #J/mol-K
+  alpha_eq = 0.9822*exp(15.788/(R*temp)), #Zhavoronkov et al., 1955 
+  epsilon = (alpha_eq - 1)*1000, #permil 
+  alpha_kin = 1.0025, 
+  epsilon_kin = 25, #permil
+  
+  #isotope boundary conditions: 
+  d18O_res = -4, #permil
+  d180_surface = 0, #permil
+  d18O_a = -14, #permil
+  
+  # evaporation rates: 
+  E = 0.05, #mm/day
+  E.m_sec = E/(1000*24*60*60), #m/sec
+  
+  #relative humidity: 
+  h_a = 0.25, 
+  
+  # water concentration: 
+  theta_bar = 0.065,
+  theta_0 = 0.05,
+  
+  #diffusion
+  p = 0.35, #unitless
+  tau = 0.67, #unitless
+  D_l = .01, #m^2 / sec
+  D_star = p*tau*D_l,  #m^2 / sec
+  
+  N_sat = 0.017, #kg/m^2
+  
+  
+  eta = (1-h_a)/epsilon_kin,
+  
+  a = 0.05, #m
+  diffusion_term  = eta*(1+d18O_res) + (d18O_res - d18O_a),
+  humidity_term = (z/ (z+.025*0.05)),
+  d18O =  (d18O_a + epsilon + (diffusion_term*humidity_term))/alpha_eq
+)
+
+
+```
+
+
+```{r}
+N_sat = exp(20.386-5132/293.15) # mmHG
+n_sat_kgm2 = N_sat*13.595
+```
+
+
 ## liquid transport zone: 
+
+$$
+\delta = \delta_{reservoir} + (\delta_{ef} - \delta_{reservoir})exp({- \int_{zef}^z)\frac{dz}{z_1 +z_v}}\\
+z_l = D^*/E \\
+z_v = \frac{\alpha_{eq}*\alpha_{kin}*D^*N_{sat}}{E\rho}  \\ 
+
+$$
+
+
+
+```{r}
+
+```
+
+
+# Non- Isotothermal à la Allison and Barnes 1988 
+
+so, lets add a more realistic temperature profile: 
+
+  t_ave = 20,
+  t_surface = 40
+  kappa = 1E-6, # m^2/second, averge value for a loamy soil
+  period = 60*60*24*365, #seconds in a year
+  z_star  = sqrt((kappa*period)/pi),
+  temp = t_ave + (t_surface - t_ave)*exp(-z/z_star)
+
+
+
+
+
+
+
+
+
+
+The isotopic ratio at the top of the saturated surface can be calculated if you know the relative humidity of the atmosphere, the diffusion ratio, the isotopic ratio that is the source, and the isotope composition of the atmosphere
+$$
+R_{surface}  = \frac{(1-h_a)\sigma R_{res} +h_aR_a)} {\alpha_{eq}} \\
+\text{where:}\\
+h_a = \text{relative humidity of the atmosphere}\\
+\sigma = \text{diffusion ratio} = 1+ (\epsilon_{kinetic}/(1-h_a))  \\
+\eta_i = \text{diffusion ratio excess}\\
+
+$$
+
+
+
+
+
+
+
+
+
