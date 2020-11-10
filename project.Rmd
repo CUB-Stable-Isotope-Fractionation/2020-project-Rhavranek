@@ -16,47 +16,44 @@ output:
 library(tidyverse)
 ```
 
-
-
+# Introduction
+This model closely follows Allison and Barnes, 1983 & Barnes and Allison, 1988. This model has three parts:\
+1. Exploring the isotope profile of an isothermal saturated soil\
+2. Exploring the isotope of an isothermal unsaturated soil\
+3. Exploring the isotope profile of a summertime unsaturated soil
 
 # Saturated Soil 
-### After Zimmermann et al., 1967:
-This is a soil where the water content (theta) is 1.  
+The change in the isotope ratio with respect to depth of a saturated soil can be described by the equation(After Zimmermann et al., 1967:):
+*This assumes that pore space is constant through the soil column.*
 $$
 \frac{dR}{dz} = \frac{E(R-R_{res})}{D^*} \\
 where:\\
-D^* = \text{effective diffusivity of the isotope in the pore water} (p\tau D_l)\\
-and\\
+E = \text{Evaporation rate } [m/sec]\\
 p = total\ porosity\ \\
 \tau = tortuosity \\
-D_l = diffusion\ coefficient\ of\ liquid\ water\ [m^2/sec]
+D_l = \text{diffusion coefficient of liquid water } [m^2/sec]\\
+D^* = \text{effective diffusivity of the isotope in the pore water} = (p\tau D_l)\\
 $$
 
-where D star is diffusivity of the isotope in pore water, E is evaporation rate, R_res is the isotope ratio of water entering the column from below
-
-for D_l go see Mills and Harris, 1976\\
-
-The solution of the differenential equation above is:
+The solution of the equation above is:
 $$
-R = R_{res} + (R_0 - R_{res})*e^{(-zE/D^*)} \\
-$$
-
-*This assumes that pore space is constant through the soil column.*
-
-In delta notatino we get: 
-
-$$
-\delta  = \delta_{res} +(\delta_{surface} - \delta_{res})*e^{(-z/z_l)} \\
+R = R_{res} + (R_0 - R_{res})*e^{(-z/zl)} \\
+where: \\
 z_l = D^*/E
 $$
 
-Activity 1: In breakout rooms, describe in words what's going on in this equation (pairs). Can you relate that back to the craig-gordon model of evaporation?
+We can express the above equation in delta notation:  
+$$
+\delta  = \delta_{res} +(\delta_{surface} - \delta_{res})*e^{(-z/z_l)} \\
+$$
 
+### Activity 1: In breakout rooms, describe in words what's going on in this equation (pairs). Can you relate that back to the craig-gordon model of evaporation?
 
+Okay! So let's make a plot of what an isotope profile of a saturated soil might look like: 
 ```{r}
 saturated_soil <- tibble(
   # set up 
-  z = seq(0,1, by = .001), #m
+  z = seq(0,.25, by = .001), #m
   
   #Oxygen isotope boundary conditions
   d18O_res = -4, #permil
@@ -77,43 +74,40 @@ saturated_soil <- tibble(
   d18O_z = d18O_res + (d18O_surface - d18O_res)*exp(-z/z_l) #permil
 )
 
-saturated_soil %>% ggplot()+aes(x = d18O_z, y = z) + geom_line()  + scale_y_reverse(limits = c(0.25, 0)) + scale_x_continuous(limits = c(-4,0))
+saturated_soil %>% ggplot()+aes(x = d18O_z, y = z) + geom_line()  + scale_y_reverse() + scale_x_continuous(limits = c(-4,0)) + theme_bw()
 ```
-Question: Picarro water isotope analyzers (like those you might find in IsoLab in SEEC) have a precision of usually +/- 0.25 permil in oxygen isotope space. To what depth would you be able to differentiate water that has been partially evaporated from the rest of the soil water? 
+
+### Activity 2: Picarro water isotope analyzers (like those you might find in IsoLab in SEEC) have a precision of usually +/- 0.25 permil in oxygen isotope space. To what depth would you be able to differentiate water that has been partially evaporated from the rest of the soil water? 
 
 
 # Unsaturated Soil:
 
-## Water concentration curve:
+#### Water concentration curve:
 Let's inspect a soil, with a water concentration profile that looks like this: 
-```{r inset}
+```{r, include = FALSE}
 water_C <- tibble (
   z = seq (0,1, by = 0.001),
   theta = ifelse(z<=0.05, 0.05, (z+0.9)/19)
 )
   
-water_C %>% ggplot () + aes(x = theta, y = z) %>% geom_line()+scale_y_reverse()+scale_x_continuous(limits = c(0,.1))
+water_C %>% ggplot () + aes(x = theta, y = z) %>% geom_line()+scale_y_reverse()+scale_x_continuous(limits = c(0,.1)) + theme_bw()
 ```
 
+**This profile requires that we inspect two parts, the vapor transport zone and the liquid transport zone**
 
 
-## vapor transport region: 
-The relative humidity above the evaporitng front in the soil varies linearly with depth (eq 9:
+## vapor transport region 
+The relative humidity above the evaporitng front in the soil varies linearly with depth 
+
 $$
-\frac {dN}{dz} = \frac{\rho E}{D^*_{vapor}} \\
+\frac{dN}{dz} = \frac{\rho E}{D^*_{vapor}} \\
 where: \\
 \text {N = concentration of water vapor in the soil}\\
 \text {rho = density of liquid water}\\
-
+D^*_{vapor} = \text{effective diffusivity of water vapor} = \tau*D^v(\rho-\theta)
 $$
 
-Equation 10:
-$$
-D^*_{vapor} = \text{effective diffusivity of water vapor}\\
-D^*_{vapor} = \tau*D^v(\rho-\theta)
-$$
-theta is the water filled porosity 
-so (subbing 9 into 10) .... 
+so ... 
 $$
 \frac {dN}{dz} = \frac{\rho E}{\tau*D^v(\rho-\theta)}
 $$
@@ -121,64 +115,51 @@ $$
 
 
 
-equations 11 & 12:
+We then need to evaluate the relative humidty at each depth. RH at depth is a function of the RH at the surface and a depth scaling factor 
 $$
-h = h_a + z/z_{penetration}\\
-z_{penetration} = \frac{N_{saturation}D^*_{vapor}}{\rho E}
+h = h_{atm} + z/\bar{z} \\
 $$
-Equation 13:
+z-bar is a function of the saturation, diffusivity of vapor, the density of water, and the evaporative rate.
+
 $$
-z_{penetration} = \text{penetration depth}\\
-z_{ef} = \text{depth of evaporating front}\\
-\text{these are related by the equation:}\\
-z_{ef} = (h_{ef} - h_{surface})*z_{penetration}
+\bar{z} = \frac{N_{saturation}D^*_{vapor}}{\rho E}\\
 $$
 
+The isotope ratio of the liquid at depth can be described by the equation:
+$$
+R_l = \frac{\alpha_k*R_{reservoir}*z/\bar{z} + h_aR^a}{\alpha_{eq}h}
+$$
 
-Equation 17: 
+If we remember that epsilon = alpha - 1, then: 
 $$
-\alpha_{eq}hR_l = \sigma_i*R_{reservoir}*z/z_{penetration} + h_aR^a
+\delta = \frac{\delta^a +\epsilon_{eq} +(\eta(1+\delta_{res}) + (\delta_{res} - \delta^a)) (z/(z+h_a\bar{z}  ))} {\alpha_{eq}}
 $$
-
-Equation 18 (uses the assumption epsilon = 1 - alpha:
-$$
-\delta = \frac{\delta^a +\epsilon_{eq} +(\eta(1+\delta_{reservoir}) + (\delta_{reservoir} - \delta^a)) (z/(z+h_a z_{penetration} ))} {\alpha_{eq}}
-$$
-hoooo! That's a lot to look at, let's break that up:\\
+hoooo! That's a lot to look at, let's break that up:\
 
 1. a description of how the 'reservoir' and air diffuse:remember, } 
 $\eta_i$ = a measure of the ability of molection of species i to escape from the surface
 $$
-diff = \eta(1+\delta_{reservoir}) + (\delta_{reservoir} - \delta^a)
+diffusion\ term = \eta(1+\delta_{reservoir}) + (\delta_{reservoir} - \delta^a)\\
+and:\\
+\eta = (1-h_a)/\epsilon_k
 $$
 so, the equation breaks up into, how effective are molevules of species i leaving the reservoir, and how differeent are the reservoir and air 
 
 
 1. a description of what the humidity is at every z:
 $$
-humidity = (z/(z+h_a z_{penetration} ))
+humidity\ term = \frac{z}{z+h_a\bar{z}}
 $$
 So, the equation above can be rewritten as: 
 $$
 \delta = \frac{\delta^a +\epsilon_{eq} +(diffusion)*(humidity)} {\alpha_{eq}}
 $$
 
-```{r frationation factor}
-temp.K = 293.15
-
-
-
-```
-
-
-
-
-
-
+okay, let's do some math: 
 ```{r}
 vt_region <-  tibble(
   #the basics: 
-  z = seq(0,.1, by = .001), #m
+  z = seq(0,.05, by = .001), #m
   temp = 20, #°C
   temp.K = temp + 273.15,
   rho = 997, #kg/m^3
@@ -196,6 +177,7 @@ vt_region <-  tibble(
   d18O_a = -14, #permil
   
   #Soil boundary conditions
+  h_a = 0.2, #relative humidity @ surface
   E = 10E-9, #m/sec
   p = 0.3, # porosity, unitless
   tau = 0.67, #toruosity, unitless
@@ -209,43 +191,31 @@ vt_region <-  tibble(
   #liquid diffusion length scale 
   z_l = D_star/E, #m
   
-  #relative humidity: 
-  h_a = 0.2, 
   
-  # water concentration: 
-  theta_bar = 0.065,
-  theta_0 = 0.05,
-  
-  #calculated terms
+  #kinetic fractionation terms: 
   eta = (1-h_a)/epsilon_kin,
   z_bar = (N_sat*D_v)/(rho*E),
   
-  a = 0.05, #m
+  
   diffusion_term  = (eta*(1+d18O_res)) + (d18O_res - d18O_a),
   humidity_term = (z/ (z+h_a*z_bar)),
   d18O =  (d18O_a + epsilon_d18O_eq + diffusion_term*humidity_term)/alpha_eq
   
 )
-
-
-
-vt_region %>% ggplot () + aes (x = d18O, y = z) + geom_line() + scale_y_reverse()
-
 ```
 
 
 ## liquid transport zone: 
-
 $$
 \delta = \delta_{reservoir} + (\delta_{ef} - \delta_{reservoir})exp({- \int_{zef}^z)\frac{dz}{z_1 +z_v}}\\
 z_l = D^*/E \\
-z_v = \frac{\alpha_{eq}*\alpha_{kin}*D^*N_{sat}}{E\rho}  \\ 
-
+z_v = \frac{\alpha_{eq}*\alpha_{kin}*D^*N_{sat}}{E\rho}  
 $$
-
+okay, lets do some math. 
 ```{r}
 lt_region <- tibble (
-  z = seq (0, 1, by=0.001),
+  z = seq (.051, 1, by=0.001),
+  z_ef = 0.05, #m
   temp = 20, #°C
   temp.K = temp + 273.15,
   rho = 997, #kg/m^3
@@ -255,11 +225,11 @@ lt_region <- tibble (
   epsilon_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3),
   alpha_eq = exp(epsilon_d18O_eq/1000),
   alpha_kin = 0.975, 
-  epsilon_kin = -25, #permil
+  epsilon_kin = -25, #permil, average based on Rothfuss et al., 2012
   
   #isotope boundary conditions: 
   d18O_res = -4, #permil
-  d180_surface = 0, #permil
+  d18O_surface = 0, #permil
   d18O_a = -14, #permil
 
   #Soil boundary conditions
@@ -272,28 +242,35 @@ lt_region <- tibble (
   D_v = 2.42E-5,
   f = tau*theta,
   D_star = f*D,  #m^2 / sec
+  g = tau*(1-theta), #this is an approximation (see 1988 paper, p 151)
+  Dv_star = g*D_v,
   
   #length scales
   z_l = D_star/E, #m
-  z_v = (alpha_eq*alpha_kin*D_star*N_sat)/(E*rho)
+  z_v = (alpha_eq*alpha_kin*Dv_star*N_sat)/(E*rho),
+  k = z_l + z_v, 
   
-  
-  #d18O_ltr <- d18O_res + ()
+  #equation 6 from 1988 paper: 
+  d18O = d18O_res + (4.35 - d18O_res)*exp(-1/k*(z-z_ef))
 )
   
-
-lt_region %>% ggplot() + aes (x=theta, y = z) + geom_line () + scale_y_reverse()
 ```
-
-
 
 ```{r}
-z <- seq(0, 1, by = 0.001)
-theta <- ifelse(z<=0.05, 0.05, (z+0.9)/19)
+d18O_profile <- bind_rows(vt_region, lt_region) %>% 
+  select(z, d18O) %>% 
+    ggplot() + 
+    aes(d18O, z)+
+    geom_path() + 
+    scale_y_reverse()
+
+
+d18O_profile
 ```
 
 
-# Non- Isotothermal à la Allison and Barnes 1988 
+
+# Summertime Unsaturated Soil 
 
 so, lets add a more realistic temperature profile: 
 
