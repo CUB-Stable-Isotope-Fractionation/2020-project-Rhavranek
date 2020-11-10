@@ -47,7 +47,8 @@ $$
 \delta  = \delta_{res} +(\delta_{surface} - \delta_{res})*e^{(-z/z_l)} \\
 $$
 
-### Activity 1: In breakout rooms, describe in words what's going on in this equation (pairs). Can you relate that back to the craig-gordon model of evaporation?
+### Activity 1: In breakout rooms, describe in words what's going on in this equation (pairs). Can you relate that back to the craig-gordon model of evaporation?\ 
+
 
 Okay! So let's make a plot of what an isotope profile of a saturated soil might look like: 
 ```{r}
@@ -166,10 +167,11 @@ vt_region <-  tibble(
   
   #fractionation factors:
   R = 8.314, #J/mol-K
-  epsilon_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3),
-  alpha_eq = exp(epsilon_d18O_eq/1000),
-  alpha_kin = .975, 
-  epsilon_kin = -25, #permil
+  horita_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3), #Horita and Wesloski (2004), permil
+  alpha_eq = exp(horita_d18O_eq/1000),
+  epsilon_d18O_eq = (alpha_eq -1)*1000,
+  alpha_kin = 1.025, 
+  epsilon_kin = -25, #a pretty good gu-estimate based on Rothfuss et al (2012), permil
   
   #isotope boundary conditions: 
   d18O_res = -4, #permil
@@ -224,8 +226,9 @@ lt_region <- tibble (
   
   #fractionation factors:
   R = 8.314, #J/mol-K
-  epsilon_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3),
-  alpha_eq = exp(epsilon_d18O_eq/1000),
+  horita_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3), #Horita and Wesloski (2004), permil
+  alpha_eq = exp(horita_d18O_eq/1000),
+  epsilon_d18O_eq = (alpha_eq -1)*1000,
   alpha_kin = 0.975, 
   epsilon_kin = -25, #permil, average based on Rothfuss et al., 2012
   
@@ -253,27 +256,24 @@ lt_region <- tibble (
   k = z_l + z_v, 
   
   #equation 6 from 1988 paper: 
-  d18O = d18O_res + (4.35 - d18O_res)*exp(-1/k*(z-z_ef))
+  d18O = d18O_res + (4.40 - d18O_res)*exp(-1/k*(z-z_ef))
 )
   
 ```
-### Activity 3: Using the vapor transport df and liquid transport df, make a plot of depth vs. d18O
+### Activity 3: Using the vapor transport df and liquid transport df, make a plot of depth vs. d18O. What is going on at the top of the profile?
+
+Answer: This part of the profile is due to diffusion in vapor only, and so we are seeing the expression of rapid diffusion from the evaporative front (heavier) to the lighter atmosphere above.
 
 ```{r}
 d18O_profile <- bind_rows(vt_region, lt_region) %>% 
   select(z, d18O)
 
-Isothermal_unsaturated <- d18O_profile %>% 
-    ggplot() + 
-    aes(d18O, z)+
-    geom_path() + 
-    scale_y_reverse()
 
 
-Isothermal_unsaturated
+
 ```
 
-What is going on at the top of the profile?
+
 
 
 # Non-isothermal Unsaturated Soil 
@@ -305,8 +305,9 @@ vt_ni <-  tibble(
   
   #fractionation factors:
   R = 8.314, #J/mol-K
-  epsilon_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3),
-  alpha_eq = exp(epsilon_d18O_eq/1000),
+  horita_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3), #Horita and Wesloski (2004), permil
+  alpha_eq = exp(horita_d18O_eq/1000),
+  epsilon_d18O_eq = (alpha_eq -1)*1000,
   alpha_kin = .975, 
   epsilon_kin = -25, #permil
   
@@ -383,7 +384,7 @@ lt_ni <- tibble (
   k = z_l + z_v, 
   
   #equation 6 from 1988 paper: 
-  d18O_summer = d18O_res + (3.74 - d18O_res)*exp(-1/k*(z-z_ef))
+  d18O_summer = d18O_res + (3.78 - d18O_res)*exp(-1/k*(z-z_ef))
 )
 
 ni_profile <- bind_rows(vt_ni,lt_ni) %>% select (z, d18O_summer) 
@@ -403,6 +404,8 @@ d18O_profile_compare
 ```
 
 ### Activity 4: At what depths can you functionally tell the difference between our isothermal and non-isothermal profiles, remembers that the Picarro error is +/- 0.25 permil
+
+ 
 
 
 
