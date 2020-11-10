@@ -14,6 +14,7 @@ output:
 
 ```{r "load packages", include=FALSE, message=FALSE}
 library(tidyverse)
+library(latex2exp)
 ```
 
 # Introduction
@@ -75,7 +76,18 @@ saturated_soil <- tibble(
   d18O_z = d18O_res + (d18O_surface - d18O_res)*exp(-z/z_l) #permil
 )
 
-saturated_soil %>% ggplot()+aes(x = d18O_z, y = z) + geom_line()  + scale_y_reverse() + scale_x_continuous(limits = c(-4,0)) + theme_bw()
+saturated_soil %>% 
+  ggplot()+
+  aes(x = d18O_z, y = z) + 
+  geom_line()  + 
+  scale_y_reverse() + 
+  scale_x_continuous(limits = c(-4,0)) + 
+  labs (y = "Depth (m)",  title = "Saturated soil isotope profile")+
+  xlab(TeX("$\\delta^{18}O (\\permil)$"))+
+  theme_bw()+
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
 ```
 
 ### Activity 2: Picarro water isotope analyzers (like those you might find in IsoLab in SEEC) have a precision of usually +/- 0.25 permil in oxygen isotope space. To what depth would you be able to differentiate water that has been partially evaporated from the rest of the soil water? 
@@ -91,7 +103,18 @@ water_C <- tibble (
   theta = ifelse(z<=0.05, 0.05, (z+0.9)/19)
 )
   
-water_C %>% ggplot () + aes(x = theta, y = z) %>% geom_line()+scale_y_reverse()+scale_x_continuous(limits = c(0,.1)) + theme_bw()
+water_C %>% 
+  ggplot () + 
+  aes(x = theta, y = z) + 
+  geom_line()+
+  scale_y_reverse()+
+  scale_x_continuous(limits = c(0,.1)) + 
+  labs (y = "Depth (m)",  title = "Volumetric Water Concentration profile")+
+  xlab(TeX("$\\theta$"))+
+  theme_bw()+
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
 ```
 
 **This profile requires that we inspect two parts, the vapor transport zone and the liquid transport zone**
@@ -398,7 +421,12 @@ d18O_profile_compare <- bind_cols(d18O_profile, ni_profile) %>%
     aes(x = value, y = z, color = name) + 
     geom_path()+
     scale_y_reverse()+
-    theme_bw()
+    labs (y = "Depth (m)",  title = "Unsaturated soil isotope profile")+
+    xlab(TeX("$\\delta^{18}O (\\permil)$"))+
+    theme_bw()+
+    theme(
+    plot.title = element_text(hjust = 0.5)
+  )
 
 d18O_profile_compare
 ```
