@@ -261,58 +261,154 @@ lt_region <- tibble (
 
 ```{r}
 d18O_profile <- bind_rows(vt_region, lt_region) %>% 
-  select(z, d18O) %>% 
+  select(z, d18O)
+
+Isothermal_unsaturated <- d18O_profile %>% 
     ggplot() + 
     aes(d18O, z)+
     geom_path() + 
     scale_y_reverse()
 
 
-d18O_profile
+Isothermal_unsaturated
 ```
 
 What is going on at the top of the profile?
 
 
-# Summertime Unsaturated Soil 
+# Non-isothermal Unsaturated Soil 
 
 so, lets add a more realistic temperature profile: 
-```{r}
+```{r, include=FALSE}
 Temp_profile <- tibble(
   z = seq(0,1, by = 0.001),
   t_ave =  20,
   t_surface= 40,
-  kappa=1E-6, # m^2/second, averge value for a loamy soil
-  period=60*60*24*365, #seconds in a year
-  z_star  = sqrt((kappa*period)/pi),
   temp = t_ave + (t_surface - t_ave)*exp(-z/0.05)
   ) %>% 
-    ggplot()+aes(x = temp, y = z) + geom_path()+scale_y_reverse()
+    ggplot()+aes(x = temp, y = z) + geom_path()+scale_y_reverse(limits = c(0.25,0))+theme_bw()
 
 Temp_profile
 ```
  
+So, we can use the exact same math as above to construct a new isotope profile: 
 
+```{r, include = FALSE}
+vt_ni <-  tibble(
+  #the basics: 
+  z = seq(0,0.05, by = .001), #m
+  t_ave =  20,
+  t_surface= 40,
+  temp = t_ave + (t_surface - t_ave)*exp(-z/0.05),
+  temp.K = temp + 273.15,
+  rho = 997, #kg/m^3
   
+  #fractionation factors:
+  R = 8.314, #J/mol-K
+  epsilon_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3),
+  alpha_eq = exp(epsilon_d18O_eq/1000),
+  alpha_kin = .975, 
+  epsilon_kin = -25, #permil
+  
+  #isotope boundary conditions: 
+  d18O_res = -4, #permil
+  d180_surface = 0, #permil
+  d18O_a = -14, #permil
+  
+  #Soil boundary conditions
+  h_a = 0.2, #relative humidity @ surface
+  E = 10E-9, #m/sec
+  p = 0.3, # porosity, unitless
+  tau = 0.67, #toruosity, unitless
+  theta = ifelse(z<=0.05, 0.05, (z+0.9)/19), #changes through the profile 
+  N_sat = 0.017, #kg/m^2
+  D = 1.5E-9, #m^2 / sec from Barnes and Allison, 1988
+  D_v = 2.42E-5,
+  f = tau*theta,
+  D_star = f*D,  #m^2 / sec
+  
+  #liquid diffusion length scale 
+  z_l = D_star/E, #m
+  
+  
+  #kinetic fractionation terms: 
+  eta = (1-h_a)/epsilon_kin,
+  z_bar = (N_sat*D_v)/(rho*E),
+  
+  diffusion_term  = (eta*(1+d18O_res)) + (d18O_res - d18O_a),
+  humidity_term = (z/ (z+h_a*z_bar)),
+  d18O_summer =  (d18O_a + epsilon_d18O_eq + diffusion_term*humidity_term)/alpha_eq
+  
+)
+```
+  
+```{r, include = FALSE}
+lt_ni <- tibble (
+  z = seq (.051, 1, by=0.001),
+  z_ef = 0.05, #m
+  t_ave =  20,
+  t_surface= 40,
+  temp = t_ave + (t_surface - t_ave)*exp(-z/0.05),
+  temp.K = temp + 273.15,
+  rho = 997, #kg/m^3
+  
+  #fractionation factors:
+  R = 8.314, #J/mol-K
+  epsilon_d18O_eq = -7.685+6.7123*(1E3/temp.K)-1.6664*(1E6/temp.K^2)+0.35041*(1E9/temp.K^3),
+  alpha_eq = exp(epsilon_d18O_eq/1000),
+  alpha_kin = 0.975, 
+  epsilon_kin = -25, #permil, average based on Rothfuss et al., 2012
+  
+  #isotope boundary conditions: 
+  d18O_res = -4, #permil
+  d18O_surface = 0, #permil
+  d18O_a = -14, #permil
+
+  #Soil boundary conditions
+  E = 10E-10, #m/sec
+  p = 0.3, # porosity, unitless
+  tau = 0.67, #toruosity, unitless
+  theta = ifelse(z<=0.05, 0.05, (z+0.9)/19), #changes through the profile
+  N_sat = 0.017, #kg/m^2
+  D = 1.5E-9, #m^2 / sec from Barnes and Allison, 1988
+  D_v = 2.42E-5,
+  f = tau*theta,
+  D_star = f*D,  #m^2 / sec
+  g = tau*(1-theta), #this is an approximation (see 1988 paper, p 151)
+  Dv_star = g*D_v,
+  
+  #length scales
+  z_l = D_star/E, #m
+  z_v = (alpha_eq*alpha_kin*Dv_star*N_sat)/(E*rho),
+  k = z_l + z_v, 
+  
+  #equation 6 from 1988 paper: 
+  d18O_summer = d18O_res + (3.74 - d18O_res)*exp(-1/k*(z-z_ef))
+)
+
+ni_profile <- bind_rows(vt_ni,lt_ni) %>% select (z, d18O_summer) 
+```
+
+
+```{r}
+d18O_profile_compare <- bind_cols(d18O_profile, ni_profile) %>% 
+  pivot_longer(c(d18O, d18O_summer)) %>%   
+    ggplot()+
+    aes(x = value, y = z, color = name) + 
+    geom_path()+
+    scale_y_reverse()+
+    theme_bw()
+
+d18O_profile_compare
+```
+
+### Activity 4: At what depths can you functionally tell the difference between our isothermal and non-isothermal profiles, remembers that the Picarro error is +/- 0.25 permil
 
 
 
 
 
 
-
-
-
-
-The isotopic ratio at the top of the saturated surface can be calculated if you know the relative humidity of the atmosphere, the diffusion ratio, the isotopic ratio that is the source, and the isotope composition of the atmosphere
-$$
-R_{surface}  = \frac{(1-h_a)\sigma R_{res} +h_aR_a)} {\alpha_{eq}} \\
-\text{where:}\\
-h_a = \text{relative humidity of the atmosphere}\\
-\sigma = \text{diffusion ratio} = 1+ (\epsilon_{kinetic}/(1-h_a))  \\
-\eta_i = \text{diffusion ratio excess}\\
-
-$$
 
 
 
