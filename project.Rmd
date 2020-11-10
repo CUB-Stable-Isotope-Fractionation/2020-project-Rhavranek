@@ -224,7 +224,7 @@ vt_region <-  tibble(
   
   diffusion_term  = (eta*(1+d18O_res)) + (d18O_res - d18O_a),
   humidity_term = (z/ (z+h_a*z_bar)),
-  d18O =  (d18O_a + epsilon_d18O_eq + diffusion_term*humidity_term)/alpha_eq
+  d18O_isothermal =  (d18O_a + epsilon_d18O_eq + diffusion_term*humidity_term)/alpha_eq
   
 )
 ```
@@ -279,7 +279,7 @@ lt_region <- tibble (
   k = z_l + z_v, 
   
   #equation 6 from 1988 paper: 
-  d18O = d18O_res + (4.40 - d18O_res)*exp(-1/k*(z-z_ef))
+  d18O_isothermal = d18O_res + (4.40 - d18O_res)*exp(-1/k*(z-z_ef))
 )
   
 ```
@@ -289,7 +289,7 @@ Answer: This part of the profile is due to diffusion in vapor only, and so we ar
 
 ```{r}
 d18O_profile <- bind_rows(vt_region, lt_region) %>% 
-  select(z, d18O)
+  select(z, d18O_isothermal)
 
 
 
@@ -361,7 +361,7 @@ vt_ni <-  tibble(
   
   diffusion_term  = (eta*(1+d18O_res)) + (d18O_res - d18O_a),
   humidity_term = (z/ (z+h_a*z_bar)),
-  d18O_summer =  (d18O_a + epsilon_d18O_eq + diffusion_term*humidity_term)/alpha_eq
+  d18O_nonisothermal =  (d18O_a + epsilon_d18O_eq + diffusion_term*humidity_term)/alpha_eq
   
 )
 ```
@@ -407,16 +407,16 @@ lt_ni <- tibble (
   k = z_l + z_v, 
   
   #equation 6 from 1988 paper: 
-  d18O_summer = d18O_res + (3.78 - d18O_res)*exp(-1/k*(z-z_ef))
+  d18O_nonisothermal = d18O_res + (3.78 - d18O_res)*exp(-1/k*(z-z_ef))
 )
 
-ni_profile <- bind_rows(vt_ni,lt_ni) %>% select (z, d18O_summer) 
+ni_profile <- bind_rows(vt_ni,lt_ni) %>% select (z, d18O_nonisothermal) 
 ```
 
 
 ```{r}
 d18O_profile_compare <- bind_cols(d18O_profile, ni_profile) %>% 
-  pivot_longer(c(d18O, d18O_summer)) %>%   
+  pivot_longer(c(d18O_isothermal, d18O_nonisothermal)) %>%   
     ggplot()+
     aes(x = value, y = z, color = name) + 
     geom_path()+
