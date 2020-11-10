@@ -96,7 +96,7 @@ water_C %>% ggplot () + aes(x = theta, y = z) %>% geom_line()+scale_y_reverse()+
 **This profile requires that we inspect two parts, the vapor transport zone and the liquid transport zone**
 
 
-## vapor transport region 
+### vapor transport region 
 The relative humidity above the evaporitng front in the soil varies linearly with depth 
 
 $$
@@ -205,13 +205,15 @@ vt_region <-  tibble(
 ```
 
 
-## liquid transport zone: 
+### liquid transport zone: 
+We have done a lot of derivation to this point, so let's get to the meaty equation! Here, we use the term (zl + zv) to balance the relative importance of liquid transport length scale and vapor transport lenth scale. With increasing theta, this term should increase overall, but the relative importance of each will change.  
+
 $$
 \delta = \delta_{reservoir} + (\delta_{ef} - \delta_{reservoir})exp({- \int_{zef}^z)\frac{dz}{z_1 +z_v}}\\
-z_l = D^*/E \\
-z_v = \frac{\alpha_{eq}*\alpha_{kin}*D^*N_{sat}}{E\rho}  
+\text{don't forget: }z_l = D^*/E \\
+z_v = \frac{\alpha_{eq}*\alpha_{kin}*D_v^*N_{sat}}{E\rho}  
 $$
-okay, lets do some math. 
+okay, lets do some math again: 
 ```{r}
 lt_region <- tibble (
   z = seq (.051, 1, by=0.001),
@@ -255,6 +257,7 @@ lt_region <- tibble (
 )
   
 ```
+### Activity 3: Using the vapor transport df and liquid transport df, make a plot of depth vs. d18O
 
 ```{r}
 d18O_profile <- bind_rows(vt_region, lt_region) %>% 
@@ -268,18 +271,29 @@ d18O_profile <- bind_rows(vt_region, lt_region) %>%
 d18O_profile
 ```
 
+What is going on at the top of the profile?
 
 
 # Summertime Unsaturated Soil 
 
 so, lets add a more realistic temperature profile: 
-
-  t_ave = 20,
-  t_surface = 40
-  kappa = 1E-6, # m^2/second, averge value for a loamy soil
-  period = 60*60*24*365, #seconds in a year
+```{r}
+Temp_profile <- tibble(
+  z = seq(0,1, by = 0.001),
+  t_ave =  20,
+  t_surface= 40,
+  kappa=1E-6, # m^2/second, averge value for a loamy soil
+  period=60*60*24*365, #seconds in a year
   z_star  = sqrt((kappa*period)/pi),
-  temp = t_ave + (t_surface - t_ave)*exp(-z/z_star)
+  temp = t_ave + (t_surface - t_ave)*exp(-z/0.05)
+  ) %>% 
+    ggplot()+aes(x = temp, y = z) + geom_path()+scale_y_reverse()
+
+Temp_profile
+```
+ 
+
+  
 
 
 
